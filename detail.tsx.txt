@@ -1,0 +1,222 @@
+import React, { useEffect, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
+import {
+  Text,
+  View,
+  Image,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+} from "react-native";
+import axios from "axios";
+import Poke from "../types/Pokemon";
+import PokeAbility from "@/types/PokemonAbilities";
+
+const baseUrlAPI = "https://pokeapi.co/api/v2/pokemon";
+const URLAb = "https://pokeapi.co/api/v2/ability";
+const URLSpecies = "https://pokeapi.co/api/v2/pokemon-species";
+
+const Details = () => {
+  const [contenido, setContenido] = useState<Poke>();
+  const [ability, setAbility] = useState<PokeAbility>();
+  const [speciesDescription, setSpeciesDescription] = useState<string | null>(
+    null
+  );
+  const [backgroundColor, setBackgroundColor] = useState<string>("#FF6347"); // Color de fondo predeterminado
+  const { codigo: queryCodigo } = useLocalSearchParams();
+  const [codigo, setCodigo] = useState(queryCodigo);
+
+  const loadPoke = async () => {
+    const result = await axios.get(`${baseUrlAPI}/${codigo}`);
+    const resultAbilities = await axios.get(`${URLAb}/${codigo}`);
+    const resultSpecies = await axios.get(`${URLSpecies}/${codigo}`);
+
+    if (result.data) {
+      setContenido(result.data);
+      // Establecer el color de fondo según el primer tipo del Pokémon
+      if (result.data.types.length > 0) {
+        const typeColor = getTypeColor(result.data.types[0].type.name);
+        setBackgroundColor(typeColor);
+      }
+    }
+
+    if (resultAbilities.data) {
+      setAbility(resultAbilities.data);
+    }
+
+    // Obtener la descripción en español de la especie del Pokémon
+    if (resultSpecies.data) {
+      const flavorTextEntry = resultSpecies.data.flavor_text_entries.find(
+        (entry) => entry.language.name === "es"
+      );
+      setSpeciesDescription(
+        flavorTextEntry
+          ? flavorTextEntry.flavor_text
+          : "Descripción no disponible."
+      );
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    // Colores según los tipos de Pokémon
+    const typeColors: { [key: string]: string } = {
+      fire: "#fca34d",
+      water: "#7ac6fa",
+      grass: "#6bc26b",
+      electric: "#f6e200",
+      ground: "#e4c99f",
+      fairy: "#f2a7d7",
+      psychic: "#f983d2",
+      bug: "#9dca4f",
+      dragon: "#6a84d2",
+      ghost: "#b99ae1",
+      normal: "#a8a878",
+      fighting: "#e35432",
+      poison: "#9b6df0",
+      rock: "#c3a04b",
+      ice: "#8fdaf6",
+      steel: "#7b7f7e",
+      dark: "#6f5f56",
+      flying: "#c3b2e3",
+    };
+
+    return typeColors[type] || "#FF6347"; // Si no hay un tipo específico, se usa un color predeterminado
+  };
+
+  useEffect(() => {
+    loadPoke();
+  }, []);
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor }]}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.header}>
+          <Text style={styles.pokemonName}>
+            {contenido?.name?.toUpperCase()}
+          </Text>
+          <Text style={styles.pokemonId}>
+            #{contenido?.id?.toString().padStart(3, "0")}
+          </Text>
+        </View>
+        <View style={styles.typesContainer}>
+          {contenido?.types.map((typeInfo) => (
+            <Text key={typeInfo.slot} style={styles.typeBadge}>
+              {typeInfo.type.name.toUpperCase()}
+            </Text>
+          ))}
+        </View>
+
+        <Image
+          style={styles.imagePokemon}
+          source={{
+            uri: `https://raw.githubusercontent.com/PokeAPI/sprites/2a6a6b66983a97a6bdc889b9e0a2a42a25e2522e/sprites/pokemon/other/official-artwork/${codigo}.png`,
+          }}
+        />
+        <View style={styles.infoRow}>
+          <Text style={styles.typeBadge}>
+            <Text style={styles.boldText}>Altura:</Text> {contenido?.height} cm
+          </Text>
+          <Text style={styles.typeBadge}>
+            <Text style={styles.boldText}>Experiencia:</Text>{" "}
+            {contenido?.base_experience}
+          </Text>
+          <Text style={styles.typeBadge}>
+            <Text style={styles.boldText}>Peso:</Text> {contenido?.weight} hg
+          </Text>
+        </View>
+
+        <View style={styles.aboutContainer}>
+          <Text style={styles.aboutTitle}>Acerca</Text>
+          <Text style={styles.aboutText}>{speciesDescription}</Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollContainer: {
+    alignItems: "center",
+    flexGrow: 1, // Esto permite que el ScrollView solo haga scroll cuando es necesario
+  },
+  header: {
+    alignItems: "center",
+    marginTop: 40,
+  },
+  pokemonName: {
+    fontSize: 40,
+    fontWeight: "bold",
+    color: "white",
+  },
+  pokemonId: {
+    fontSize: 16,
+    color: "white",
+    marginTop: 5,
+  },
+  typesContainer: {
+    flexDirection: "row",
+    marginTop: 10,
+  },
+  typeBadge: {
+    backgroundColor: "#fff",
+    color: "#FF6347",
+    fontWeight: "bold",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginHorizontal: 5,
+  },
+  imagePokemon: {
+    width: 300,
+    height: 300,
+    marginVertical: 20,
+  },
+  aboutContainer: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 50,
+    padding: 30,
+    alignItems: "center",
+    marginTop: 40,
+    flexWrap: "wrap",
+    minHeight: "auto",
+    flex: 1, // Cambia minHeight para evitar espacio adicional
+  },
+  aboutTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 5,
+    textAlign: "center", // Centrado del título
+  },
+  aboutText: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center", // Justifica el texto para una mejor presentación
+    lineHeight: 22,
+    // paddingHorizontal: 10,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 10,
+    width: "90%",
+    alignItems: "center",
+  },
+  infoText: {
+    fontSize: 16,
+    color: "#333",
+    marginVertical: 2,
+    width: "30%",
+    textAlign: "right",
+  },
+  boldText: {
+    fontWeight: "bold",
+  },
+});
+
+export default Details;
